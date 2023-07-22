@@ -17,14 +17,15 @@ from urllib.error import HTTPError, URLError
 import sys
 import ssl
 import encodings.idna
+import json
 
 def findgitrepo(output_file, domains):
     domain = ".".join(encodings.idna.ToASCII(label).decode("ascii") for label in domains.strip().split("."))
 
     try:
-        # Try to download http://target.tld/.git/HEAD
-        with urlopen(''.join(['http://', domain, '/.git/HEAD']), context=ssl._create_unverified_context(), timeout=5) as response:
-            answer = response.read(200).decode('utf-8', 'ignore')
+        # Try to download http://target.tld/redfish/v1
+        with urlopen(''.join(['https://', domain, '/redfish/v1']), context=ssl._create_unverified_context(), timeout=5) as response:
+            answer = response.read().decode('utf-8', 'ignore')
 
     except HTTPError:
         return
@@ -40,14 +41,15 @@ def findgitrepo(output_file, domains):
         raise
 
     # Check if refs/heads is in the file
-    if 'refs/heads' not in answer:
+    if 'RedfishVersion' not in answer:
         return
 
     # Write match to output_file
     with open(output_file, 'a') as file_handle:
         file_handle.write(''.join([domain, '\n']))
 
-    print(''.join(['[*] Found: ', domain]))
+    redfishversion = json.loads(answer)['RedfishVersion']
+    print(domain + ',' + redfishversion)
 
 
 def read_file(filename):
